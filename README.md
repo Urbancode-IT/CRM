@@ -125,67 +125,54 @@ ATTENDANCE_AUTOMARK_CRON=0 20 * * *  # 8pm daily: auto-mark unmarked students ab
 TASK_AUTOMATION_CRON=0 6 * * *       # 6am daily: spawn due recurring task instances
 ```
 
-## Deploy on Vercel (full stack)
+## Deploy (Vercel frontend + Linode backend)
 
-You need **two Vercel projects** (same GitHub repo) plus a free **MongoDB Atlas** cluster.
+Recommended production split:
 
-### 1. MongoDB Atlas
+- **Frontend** → Vercel (`frontend/`, Vite)
+- **Backend** → Linode VPS (`backend/`, Node + PM2 + Nginx + PostgreSQL)
 
-1. Create a free cluster at https://www.mongodb.com/atlas
-2. Create a DB user and allow network access `0.0.0.0/0`
-3. Copy the connection string → use as `MONGO_URI`
+Linode helpers live in `backend/deploy/` (`setup-linode.sh`, `nginx-tusion-api.conf`, `deploy.sh`) and `backend/ecosystem.config.cjs`.
 
-### 2. Backend project
+### 1. Linode API (Ubuntu)
 
-1. Vercel → **Add New Project** → import the repo
-2. Settings:
-   - **Root Directory:** `backend`
-   - **Framework Preset:** Other
-3. Environment variables:
+```bash
+# on the VPS as root
+bash backend/deploy/setup-linode.sh
+# then as tusion user:
+cd /var/www/tusion/backend
+cp .env.example .env   # set production values below
+npm ci && npx prisma generate && npm run prisma:deploy && npm run seed
+pm2 start ecosystem.config.cjs --env production
+pm2 save && pm2 startup
+```
+
+Key `.env` values on Linode:
 
 ```
 NODE_ENV=production
-MONGO_URI=mongodb+srv://...
-JWT_SECRET=long_random_secret
-JWT_EXPIRES_IN=7d
+PORT=5000
 CLIENT_URL=https://your-frontend.vercel.app
-CRON_SECRET=long_random_cron_secret
-ADMIN_NAME=Tutor Manager
-ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=your_secure_password
-EMAIL_ENABLED=false
-AI_ENABLED=false
+DATABASE_URL=postgresql://tusion:PASSWORD@127.0.0.1:5432/tusion?schema=public
+JWT_SECRET=long_random_secret
 ```
 
-4. Deploy. API health check: `https://your-backend.vercel.app/api/health`
-5. Seed the admin user once (from your machine, pointing at Atlas):
+Point Nginx at the API (`deploy/nginx-tusion-api.conf`) and issue TLS with Certbot for `api.yourdomain.com`. Health check: `https://api.yourdomain.com/api/health`.
 
-```bash
-cd backend
-# set MONGO_URI + ADMIN_* in .env to the same production values
-npm run seed
-```
+Cron jobs run on the VPS via `node-cron` in `server.js` (no Vercel Cron needed).
 
-Cron jobs (payments / attendance / tasks) are defined in `backend/vercel.json` and call `/api/cron/*` with `CRON_SECRET`. Schedules are UTC (IST ≈ UTC+5:30).
+### 2. Vercel frontend
 
-### 3. Frontend project
-
-1. Vercel → **Add New Project** → same repo again
-2. Settings:
-   - **Root Directory:** `frontend`
-   - **Framework Preset:** Vite
-3. Environment variable:
+1. Vercel → **Add New Project** → repo, **Root Directory:** `frontend`
+2. Env:
 
 ```
-VITE_API_URL=https://your-backend.vercel.app/api
+VITE_API_URL=https://api.yourdomain.com/api
 ```
 
-4. Deploy, then set backend `CLIENT_URL` to the frontend URL and redeploy backend if needed.
+3. Redeploy frontend after changing `VITE_API_URL`.
 
-### Local vs Vercel
-
-- Local: `npm run dev` still uses `node-cron` via `server.js`
-- Vercel: serverless Express (`api/index.js`) + Vercel Cron (no `app.listen`, no `node-cron`)
+CORS already allows `CLIENT_URL` and `*.vercel.app` origins.
 
 ## Notes
 
