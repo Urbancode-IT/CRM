@@ -1,8 +1,6 @@
-// Daily job that automates attendance tracking: any active student who has no attendance
-// record for today by the time this job runs (end-of-day cutoff) is auto-marked absent,
-// so the tutor only has to handle exceptions rather than marking everyone by hand.
-const Student = require('../models/Student');
-const Attendance = require('../models/Attendance');
+const { prisma } = require('../config/db');
+const { studentWhere } = require('../utils/studentQuery');
+const { notifyAbsentMany } = require('../services/absentNotifyService');
 
 function todayStart() {
   const d = new Date();
@@ -12,26 +10,58 @@ function todayStart() {
 
 async function autoMarkMissingAttendance() {
   const date = todayStart();
-  const activeStudents = await Student.find({ status: 'active' }, '_id');
-  const marked = await Attendance.find({ date }, 'student');
-  const markedIds = new Set(marked.map((m) => m.student.toString()));
+  const activeStudents = await prisma.student.findMany({
+    where: studentWhere({ status: 'active' }),
+    select: {
+      id: true,
+      tenantId: true,
+      name: true,
+      phone: true,
+      parentPhone: true,
+      email: true,
+      parentEmail: true,
+    },
+  });
+  const marked = await prisma.attendance.findMany({
+    where: { date },
+    select: { studentId: true, tenantId: true, status: true },
+  });
+  const markedIds = new Set(marked.map((m) => m.studentId));
 
-  const missing = activeStudents.filter((s) => !markedIds.has(s._id.toString()));
+  // If a workspace already marked the day as holiday for anyone, skip auto-absent there.
+  const holidayTenants = new Set(
+    marked.filter((m) => m.status === 'holiday').map((m) => m.tenantId)
+  );
+
+  const missing = activeStudents.filter(
+    (s) => !markedIds.has(s.id) && !holidayTenants.has(s.tenantId)
+  );
   if (!missing.length) return 0;
 
-  await Attendance.insertMany(
-    missing.map((s) => ({
-      student: s._id,
+  await prisma.attendance.createMany({
+    data: missing.map((s) => ({
+      tenantId: s.tenantId,
+      studentId: s.id,
       date,
       status: 'absent',
       autoMarked: true,
       markedBy: 'system',
       remarks: 'Auto-marked absent: no attendance recorded by end of day',
     })),
-    { ordered: false }
+    skipDuplicates: true,
+  });
+
+  const notified = await notifyAbsentMany(
+    missing.map((s) => ({
+      student: s,
+      date,
+      reason: 'Auto-marked at end of day (no attendance recorded).',
+    }))
   );
 
-  console.log(`[attendanceJob] auto-marked ${missing.length} student(s) absent for today`);
+  console.log(
+    `[attendanceJob] auto-marked ${missing.length} student(s) absent; notified ${notified} parent(s)`
+  );
   return missing.length;
 }
 

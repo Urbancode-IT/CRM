@@ -1,0 +1,542 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  name                  String
+  email                 String    @unique
+  password              String?
+  authProvider          String    @default("local")
+  googleId              String?   @unique
+  avatarUrl             String    @default("")
+  role                  String    @default("tutor")
+  isSuperAdmin          Boolean   @default(false)
+  onboardingCompleted   Boolean   @default(false)
+  featureIntroSeen      Boolean   @default(false)
+  instituteName         String    @default("")
+  studentCount          Int?
+  timeZone              String    @default("Asia/Kolkata")
+  language              String    @default("en-US")
+  currencyLocale        String    @default("India")
+  displayName           String    @default("")
+  gender                String    @default("")
+  country               String    @default("India")
+  state                 String    @default("")
+  mobile                String    @default("")
+  secondaryEmail        String    @default("")
+  mfaEnabled            Boolean   @default(false)
+  mfaSecret             String    @default("")
+  mfaBackupCodes        String[]  @default([])
+  isParent              Boolean   @default(false)
+  referralCode          String    @default("")
+  referredBy            String    @default("")
+  loginAlerts           Boolean   @default(true)
+  emailMarketing        Boolean   @default(false)
+  shareAnalytics        Boolean   @default(true)
+  sessionsInvalidBefore DateTime?
+  activeTenantId        String?
+  activeTenant          Tenant?   @relation("UserActiveTenant", fields: [activeTenantId], references: [id], onDelete: SetNull)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  memberships           Membership[]
+  sessions              Session[]
+  modules               Module[]
+  auditLogs             AuditLog[]
+  instructors           Instructor[]           @relation("InstructorUser")
+  deletedStudents       Student[]              @relation("StudentDeletedBy")
+  createdRecords        Record[]               @relation("RecordCreatedBy")
+  updatedRecords        Record[]               @relation("RecordUpdatedBy")
+}
+
+model Tenant {
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  businessCategory String    @default("tuition")
+  branding         Json      @default("{\"logoUrl\":\"\",\"primaryColor\":\"#2549d1\"}")
+  settings         Json      @default("{\"timeZone\":\"Asia/Kolkata\",\"language\":\"en-US\",\"currencyLocale\":\"India\"}")
+  status           String    @default("active")
+  trialEndsAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  activeUsers            User[]                  @relation("UserActiveTenant")
+  memberships            Membership[]
+  students               Student[]
+  batches                Batch[]
+  instructors            Instructor[]
+  attendances            Attendance[]
+  instructorAttendances  InstructorAttendance[]
+  payments               Payment[]
+  tasks                  Task[]
+  subscription           Subscription?
+  invoices               Invoice[]
+  customModules          CustomModule[]
+  customFields           CustomField[]
+  records                Record[]
+  forms                  Form[]
+  workflows              Workflow[]
+  modules                Module[]
+  auditLogs              AuditLog[]
+}
+
+model Membership {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  userId              String
+  role                String    @default("staff")
+  instructorProfileId String?
+  status              String    @default("active")
+  invitedEmail        String    @default("")
+  inviteToken         String?
+  inviteExpiresAt     DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instructorProfile Instructor? @relation(fields: [instructorProfileId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([inviteToken])
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String
+  userAgent    String    @default("")
+  ip           String    @default("")
+  label        String    @default("Web session")
+  lastActiveAt DateTime  @default(now())
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model OtpChallenge {
+  id          String   @id @default(cuid())
+  channel     String
+  destination String
+  purpose     String   @default("login")
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  consumed    Boolean  @default(false)
+  meta        Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([destination])
+  @@index([expiresAt])
+}
+
+model Student {
+  id               String    @id @default(cuid())
+  tenantId         String
+  name             String
+  email            String?
+  phone            String?
+  parentName       String?
+  parentEmail      String?
+  parentPhone      String?
+  subjects         String[]  @default([])
+  grade            String?
+  batch            String?
+  batchRefId       String?
+  parentAccessCode String    @default("")
+  joinDate         DateTime  @default(now())
+  monthlyFee       Float     @default(0)
+  status           String    @default("active")
+  notes            String?
+  customValues     Json      @default("{}")
+  deletedAt        DateTime?
+  deletedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batchRef    Batch?       @relation(fields: [batchRefId], references: [id], onDelete: SetNull)
+  deletedBy   User?        @relation("StudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  attendances Attendance[]
+  payments    Payment[]
+  tasks       Task[]
+
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
+model Batch {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  grade        String   @default("")
+  subjects     String[] @default([])
+  schedule     Json     @default("[]")
+  capacity     Int      @default(30)
+  instructorId String?
+  notes        String   @default("")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instructor Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  students   Student[]
+
+  @@index([tenantId])
+  @@index([tenantId, name])
+}
+
+model Instructor {
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  email          String   @default("")
+  phone          String   @default("")
+  employeeCode   String   @default("")
+  specialties    String[] @default([])
+  joinDate       DateTime @default(now())
+  address        String   @default("")
+  emergencyName  String   @default("")
+  emergencyPhone String   @default("")
+  monthlyPay     Float    @default(0)
+  status         String   @default("active")
+  notes          String   @default("")
+  customValues   Json     @default("{}")
+  userId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?                  @relation("InstructorUser", fields: [userId], references: [id], onDelete: SetNull)
+  batches     Batch[]
+  memberships Membership[]
+  attendances InstructorAttendance[]
+
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@index([tenantId, userId])
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  tenantId   String
+  studentId  String
+  date       DateTime
+  status     String   @default("present")
+  autoMarked Boolean  @default(false)
+  markedBy   String?
+  remarks    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, studentId, date])
+  @@index([tenantId])
+}
+
+model InstructorAttendance {
+  id           String   @id @default(cuid())
+  tenantId     String
+  instructorId String
+  date         DateTime
+  status       String   @default("present")
+  markedBy     String   @default("")
+  remarks      String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instructor Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, instructorId, date])
+  @@index([tenantId])
+}
+
+model Payment {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  studentId          String
+  amount             Float
+  month              Int
+  year               Int
+  dueDate            DateTime
+  paidDate           DateTime?
+  status             String    @default("pending")
+  method             String    @default("cash")
+  receiptSent        Boolean   @default(false)
+  lastReminderSentAt DateTime?
+  reminderCount      Int       @default(0)
+  autoGenerated      Boolean   @default(false)
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, studentId, month, year])
+  @@index([tenantId])
+}
+
+model Task {
+  id                String    @id @default(cuid())
+  tenantId          String
+  title             String
+  description       String?
+  relatedStudentId  String?
+  assignedTo        String    @default("Tutor")
+  dueDate           DateTime?
+  priority          String    @default("medium")
+  status            String    @default("pending")
+  recurring         Boolean   @default(false)
+  recurrencePattern String?
+  lastGeneratedAt   DateTime?
+  autoGenerated     Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  relatedStudent Student? @relation(fields: [relatedStudentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, status, dueDate])
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String   @default("")
+  priceMonthly Float    @default(0)
+  priceYearly  Float    @default(0)
+  currency     String   @default("INR")
+  limits       Json     @default("{\"users\":1,\"modules\":5,\"records\":500,\"workflows\":0,\"forms\":3,\"batches\":10}")
+  features     String[] @default([])
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                     String    @id @default(cuid())
+  tenantId               String    @unique
+  planId                 String
+  status                 String    @default("trialing")
+  billingCycle           String    @default("monthly")
+  currentPeriodStart     DateTime  @default(now())
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  razorpaySubscriptionId String    @default("")
+  razorpayCustomerId     String    @default("")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
+  invoices Invoice[]
+}
+
+model Invoice {
+  id                       String    @id @default(cuid())
+  tenantId                 String
+  subscriptionId           String?
+  amount                   Float
+  currency                 String    @default("INR")
+  status                   String    @default("pending")
+  description              String    @default("")
+  provider                 String    @default("dev")
+  razorpayOrderId          String    @default("")
+  razorpayPaymentId        String    @default("")
+  cashfreeOrderId          String    @default("")
+  cashfreePaymentId        String    @default("")
+  cashfreePaymentSessionId String    @default("")
+  couponCode               String    @default("")
+  discountAmount           Float     @default(0)
+  paidAt                   DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model Coupon {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  description     String    @default("")
+  discountPercent Float     @default(0)
+  discountAmount  Float     @default(0)
+  maxRedemptions  Int       @default(100)
+  redeemedCount   Int       @default(0)
+  validFrom       DateTime  @default(now())
+  validUntil      DateTime?
+  planCodes       String[]  @default([])
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model CustomModule {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  icon        String   @default("box")
+  description String   @default("")
+  isSystem    Boolean  @default(false)
+  systemKey   String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fields        CustomField[] @relation("CustomFieldModule")
+  lookupFields  CustomField[] @relation("CustomFieldLookup")
+  records       Record[]
+  forms         Form[]
+  workflows     Workflow[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model CustomField {
+  id             String   @id @default(cuid())
+  tenantId       String
+  moduleId       String
+  name           String
+  key            String
+  type           String
+  required       Boolean  @default(false)
+  placeholder    String   @default("")
+  defaultValue   Json?
+  options        String[] @default([])
+  lookupModuleId String?
+  validation     Json?
+  conditional    Json?
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module       CustomModule @relation("CustomFieldModule", fields: [moduleId], references: [id], onDelete: Cascade)
+  lookupModule CustomModule? @relation("CustomFieldLookup", fields: [lookupModuleId], references: [id], onDelete: SetNull)
+
+  @@unique([moduleId, key])
+  @@index([tenantId])
+  @@index([moduleId])
+}
+
+model Record {
+  id          String   @id @default(cuid())
+  tenantId    String
+  moduleId    String
+  values      Json     @default("{}")
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module    CustomModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdBy User?        @relation("RecordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?        @relation("RecordUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, moduleId, createdAt])
+}
+
+model Form {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String   @default("")
+  moduleId    String?
+  fields      Json     @default("[]")
+  isTemplate  Boolean  @default(false)
+  status      String   @default("draft")
+  publicToken String?  @unique
+  allowPublic Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module CustomModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model Workflow {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String
+  moduleId   String?
+  trigger    String
+  conditions Json     @default("[]")
+  actions    Json     @default("[]")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module CustomModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  name      String
+  order     Int      @default(0)
+  isSystem  Boolean  @default(false)
+  sections  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  userId     String?
+  action     String
+  entityType String   @default("")
+  entityId   String   @default("")
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}

@@ -1,7 +1,5 @@
-const Student = require('../models/Student');
-const Payment = require('../models/Payment');
-const Attendance = require('../models/Attendance');
-const Task = require('../models/Task');
+const { prisma } = require('../config/db');
+const { studentWhere } = require('../utils/studentQuery');
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -15,38 +13,75 @@ function endOfDay(date) {
   return d;
 }
 
-async function getDashboardSummary() {
+/** Related student is treated as missing when soft-deleted. */
+function liveStudent(student) {
+  return student && !student.deletedAt ? student : null;
+}
+
+async function getDashboardSummary(tenantId) {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
+  const t = { tenantId };
 
-  const [totalStudents, activeStudents, monthPayments, todayAttendance, overduePayments, upcomingTasks, pendingTasks] =
-    await Promise.all([
-      Student.countDocuments({}),
-      Student.countDocuments({ status: 'active' }),
-      Payment.find({ month, year }),
-      Attendance.find({ date: { $gte: startOfDay(now), $lte: endOfDay(now) } }),
-      Payment.find({ status: 'overdue' }).populate('student', 'name email parentEmail'),
-      Task.find({ status: { $ne: 'completed' }, dueDate: { $gte: startOfDay(now) } })
-        .sort({ dueDate: 1 })
-        .limit(10)
-        .populate('relatedStudent', 'name'),
-      Task.countDocuments({ status: 'pending' }),
-    ]);
+  const [
+    totalStudents,
+    activeStudents,
+    monthPayments,
+    todayAttendance,
+    overduePaymentRows,
+    upcomingTaskRows,
+    pendingTasks,
+    customModules,
+    customRecords,
+  ] = await Promise.all([
+    prisma.student.count({ where: studentWhere(t) }),
+    prisma.student.count({ where: studentWhere({ ...t, status: 'active' }) }),
+    prisma.payment.findMany({ where: { ...t, month, year } }),
+    prisma.attendance.findMany({
+      where: { ...t, date: { gte: startOfDay(now), lte: endOfDay(now) } },
+    }),
+    prisma.payment.findMany({
+      where: { ...t, status: 'overdue' },
+      include: {
+        student: { select: { id: true, name: true, email: true, parentEmail: true, deletedAt: true } },
+      },
+    }),
+    prisma.task.findMany({
+      where: {
+        ...t,
+        status: { not: 'completed' },
+        dueDate: { gte: startOfDay(now) },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 10,
+      include: { relatedStudent: { select: { id: true, name: true, deletedAt: true } } },
+    }),
+    prisma.task.count({ where: { ...t, status: 'pending' } }),
+    prisma.customModule.count({ where: { ...t, isSystem: false } }),
+    prisma.record.count({ where: t }),
+  ]);
 
   const feeCollected = monthPayments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
   const feePending = monthPayments
     .filter((p) => p.status !== 'paid')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const presentToday = todayAttendance.filter((a) => a.status === 'present' || a.status === 'late').length;
-  const attendanceRateToday = todayAttendance.length
-    ? Math.round((presentToday / todayAttendance.length) * 100)
-    : null;
+  const countedToday = todayAttendance.filter((a) => a.status !== 'holiday');
+  const presentToday = countedToday.filter((a) => a.status === 'present' || a.status === 'late').length;
+  const isHolidayToday =
+    todayAttendance.length > 0 && todayAttendance.every((a) => a.status === 'holiday');
+  const attendanceRateToday = isHolidayToday
+    ? null
+    : countedToday.length
+      ? Math.round((presentToday / countedToday.length) * 100)
+      : null;
 
   return {
     totalStudents,
     activeStudents,
+    customModules,
+    customRecords,
     monthlyFee: {
       month,
       year,
@@ -59,24 +94,30 @@ async function getDashboardSummary() {
       present: presentToday,
       rate: attendanceRateToday,
     },
-    overduePayments: overduePayments.map((p) => ({
-      id: p._id,
-      student: p.student ? { id: p.student._id, name: p.student.name } : null,
-      amount: p.amount,
-      month: p.month,
-      year: p.year,
-      dueDate: p.dueDate,
-      reminderCount: p.reminderCount,
-    })),
+    overduePayments: overduePaymentRows.map((p) => {
+      const student = liveStudent(p.student);
+      return {
+        id: p.id,
+        student: student ? { id: student.id, name: student.name } : null,
+        amount: p.amount,
+        month: p.month,
+        year: p.year,
+        dueDate: p.dueDate,
+        reminderCount: p.reminderCount,
+      };
+    }),
     pendingTasksCount: pendingTasks,
-    upcomingTasks: upcomingTasks.map((t) => ({
-      id: t._id,
-      title: t.title,
-      dueDate: t.dueDate,
-      priority: t.priority,
-      status: t.status,
-      student: t.relatedStudent ? t.relatedStudent.name : null,
-    })),
+    upcomingTasks: upcomingTaskRows.map((task) => {
+      const student = liveStudent(task.relatedStudent);
+      return {
+        id: task.id,
+        title: task.title,
+        dueDate: task.dueDate,
+        priority: task.priority,
+        status: task.status,
+        student: student ? student.name : null,
+      };
+    }),
   };
 }
 

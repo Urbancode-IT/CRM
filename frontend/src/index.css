@@ -2,6 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* RGB channels so Tailwind opacity modifiers (e.g. bg-brand-50/70) work */
+  --brand-50: 238 244 255;
+  --brand-100: 220 232 255;
+  --brand-200: 184 208 255;
+  --brand-300: 138 176 255;
+  --brand-400: 92 139 255;
+  --brand-500: 55 102 245;
+  --brand-600: 37 73 209;
+  --brand-700: 30 58 168;
+  --brand-800: 28 50 134;
+  --brand-900: 27 44 107;
+  --brand-sidebar: #0b1c2e;
+  --brand-sidebar-active: #2549d1;
+  --brand-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --brand-sidebar-text: #e8f0f8;
+  --brand-sidebar-muted: #8aa8c4;
+  --app-font-scale: 1;
+}
+
+html {
+  font-size: calc(16px * var(--app-font-scale));
+}
+
 body {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-brand-50 font-sans text-slate-800 antialiased;
+}
+
+/* Extra-thin modern scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--brand-400) / 0.7) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--brand-400) / 0.65);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--brand-500) / 0.9);
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }

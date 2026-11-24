@@ -1,8 +1,8 @@
 const express = require('express');
 const { getStudentAnalysis } = require('../controllers/analysisController');
-const { protect } = require('../middleware/auth');
+const { protect, requireTenant, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
-router.get('/:id', protect, getStudentAnalysis);
+router.get('/:id', protect, requireTenant, requireActiveSubscription, getStudentAnalysis);
 
 module.exports = router;

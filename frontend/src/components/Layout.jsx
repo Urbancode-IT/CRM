@@ -1,53 +1,62 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const links = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/students', label: 'Students' },
-  { to: '/attendance', label: 'Attendance' },
-  { to: '/payments', label: 'Payments' },
-  { to: '/tasks', label: 'Tasks' },
-];
+import { useTheme } from '../context/ThemeContext';
+import Sidebar from './Sidebar';
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { openCustomize, resolvedMode } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const night = resolvedMode === 'night';
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <aside className="w-60 shrink-0 border-r border-slate-200 bg-white p-4">
-        <div className="mb-8 px-2 text-xl font-bold text-brand-700">Tuition CRM</div>
-        <nav className="flex flex-col gap-1">
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
+    <div className={`flex h-screen ${night ? 'bg-slate-900' : 'bg-brand-50'}`}>
+      <Sidebar user={user} logout={logout} open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
-          <div className="text-sm text-slate-500">Tuition Student Management</div>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header
+          className={`flex items-center justify-between border-b px-4 py-3 sm:px-6 ${
+            night ? 'border-white/10 bg-slate-950' : 'border-brand-100 bg-white'
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-slate-700">{user?.name}</span>
             <button
-              onClick={logout}
-              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              type="button"
+              className={`rounded-md border px-2 py-1 text-sm lg:hidden ${
+                night ? 'border-white/15 text-slate-100' : 'border-brand-200 text-slate-900'
+              }`}
+              onClick={() => setMenuOpen(true)}
             >
-              Log out
+              Menu
+            </button>
+            <div className={`text-sm font-medium ${night ? 'text-slate-100' : 'text-slate-900'}`}>
+              {user?.tenant?.name || user?.instituteName || 'Workspace'}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/account"
+              className={`rounded-lg px-2 py-1 text-sm font-medium transition ${
+                night ? 'text-slate-100 hover:bg-white/10' : 'text-slate-900 hover:bg-brand-50'
+              }`}
+              title="My Account"
+            >
+              {user?.name}
+            </Link>
+            <button
+              type="button"
+              onClick={openCustomize}
+              className={`rounded-lg px-2 py-1 text-xs font-medium transition ${
+                night ? 'text-slate-300 hover:bg-white/10' : 'text-slate-500 hover:bg-brand-50'
+              }`}
+              title="Themes"
+            >
+              Theme
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className={`flex-1 overflow-y-auto p-4 sm:p-6 ${night ? 'text-slate-100' : ''}`}>
           <Outlet />
         </main>
       </div>

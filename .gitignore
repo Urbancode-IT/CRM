@@ -5,3 +5,8 @@ dist/
 !.env.example
 .vercel
 *.log
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+**/src/generated/

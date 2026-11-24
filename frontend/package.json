@@ -1,5 +1,5 @@
 {
-  "name": "tuition-frontend",
+  "name": "user-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -12,6 +12,7 @@
     "axios": "^1.7.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.6.1",
     "react-router-dom": "^6.24.1"
   },
   "devDependencies": {

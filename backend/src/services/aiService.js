@@ -1,13 +1,24 @@
 const { callGemini, isAiEnabled } = require('../config/ai');
-const Attendance = require('../models/Attendance');
-const Payment = require('../models/Payment');
-const Task = require('../models/Task');
+const { prisma } = require('../config/db');
 
 async function buildStudentStats(student) {
+  const studentId = student.id || student._id;
   const [attendanceRecords, payments, tasks] = await Promise.all([
-    Attendance.find({ student: student._id }).sort({ date: -1 }).limit(60),
-    Payment.find({ student: student._id }).sort({ year: -1, month: -1 }).limit(12),
-    Task.find({ relatedStudent: student._id }).sort({ createdAt: -1 }).limit(20),
+    prisma.attendance.findMany({
+      where: { studentId },
+      orderBy: { date: 'desc' },
+      take: 60,
+    }),
+    prisma.payment.findMany({
+      where: { studentId },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      take: 12,
+    }),
+    prisma.task.findMany({
+      where: { relatedStudentId: studentId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
   ]);
 
   const presentCount = attendanceRecords.filter((a) => a.status === 'present').length;

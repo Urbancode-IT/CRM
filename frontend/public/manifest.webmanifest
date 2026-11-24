@@ -1,0 +1,17 @@
+{
+  "name": "Tusion",
+  "short_name": "Tusion",
+  "description": "Tuition class workspace — students, fees, attendance",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1c2e",
+  "theme_color": "#2549d1",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

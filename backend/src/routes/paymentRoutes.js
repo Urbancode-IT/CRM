@@ -5,14 +5,16 @@ const {
   markPaid,
   updatePayment,
   deletePayment,
+  getReceipt,
 } = require('../controllers/paymentController');
-const { protect } = require('../middleware/auth');
+const { protect, requireTenant, requireRole, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(protect);
+router.use(protect, requireTenant, requireActiveSubscription);
 
 router.route('/').get(getPayments).post(createPayment);
 router.patch('/:id/mark-paid', markPaid);
-router.route('/:id').put(updatePayment).delete(deletePayment);
+router.get('/:id/receipt', getReceipt);
+router.route('/:id').put(updatePayment).delete(requireRole('owner', 'admin'), deletePayment);
 
 module.exports = router;

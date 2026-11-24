@@ -36,13 +36,14 @@ export default function StudentDetail() {
 
   if (!student) return <div className="text-sm text-slate-500">Loading...</div>;
 
-  const present = attendance.filter((a) => a.status === 'present').length;
-  const attendanceRate = attendance.length ? Math.round((present / attendance.length) * 100) : null;
+  const counted = attendance.filter((a) => a.status !== 'holiday');
+  const present = counted.filter((a) => a.status === 'present' || a.status === 'late').length;
+  const attendanceRate = counted.length ? Math.round((present / counted.length) * 100) : null;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link to="/students" className="text-sm text-brand-700 hover:underline">
+        <Link to="/app/students" className="text-sm text-slate-700 hover:underline">
           &larr; Back to students
         </Link>
         <h1 className="mt-1 text-lg font-semibold text-slate-900">{student.name}</h1>
@@ -68,7 +69,7 @@ export default function StudentDetail() {
         </InfoCard>
       </div>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-800">AI progress analysis</h2>
           <button
@@ -93,7 +94,7 @@ export default function StudentDetail() {
         )}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-800">Payment history</h2>
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -124,7 +125,7 @@ export default function StudentDetail() {
         </table>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-800">Tasks</h2>
         <ul className="flex flex-col gap-2 text-sm">
           {tasks.map((t) => (
@@ -142,7 +143,7 @@ export default function StudentDetail() {
 
 function InfoCard({ title, children }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
       <div className="text-sm text-slate-700">{children}</div>
     </div>
@@ -161,7 +162,7 @@ const STATUS_COLORS = {
 
 function StatusPill({ status }) {
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_COLORS[status] || 'bg-slate-100 text-slate-500'}`}>
+    <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_COLORS[status] || 'bg-brand-100 text-slate-500'}`}>
       {status}
     </span>
   );

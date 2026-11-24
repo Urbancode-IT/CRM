@@ -1,9 +1,17 @@
 const { getTransporter, isEmailEnabled } = require('../config/mailer');
-const { receiptEmail, overdueReminderEmail } = require('../templates/emailTemplates');
+const { maskDestination } = require('../utils/mask');
+const {
+  receiptEmail,
+  overdueReminderEmail,
+  inviteEmail,
+  workflowNotifyEmail,
+  otpEmail,
+  parentMagicEmail,
+} = require('../templates/emailTemplates');
 
-async function send(to, { subject, html }) {
+async function sendMail(to, { subject, html }) {
   if (!isEmailEnabled()) {
-    console.log(`[email:disabled] Would send "${subject}" to ${to}`);
+    console.log(`[email:disabled] Would send "${subject}" to ${maskDestination(to)}`);
     return { sent: false, reason: 'email disabled' };
   }
   if (!to) {
@@ -13,7 +21,7 @@ async function send(to, { subject, html }) {
 
   const transporter = getTransporter();
   await transporter.sendMail({
-    from: `"${process.env.SMTP_FROM_NAME || 'Tuition CRM'}" <${process.env.SMTP_USER}>`,
+    from: `"${process.env.SMTP_FROM_NAME || 'Tusion'}" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,
@@ -22,11 +30,35 @@ async function send(to, { subject, html }) {
 }
 
 async function sendReceiptEmail(to, payload) {
-  return send(to, receiptEmail(payload));
+  return sendMail(to, receiptEmail(payload));
 }
 
 async function sendOverdueReminderEmail(to, payload) {
-  return send(to, overdueReminderEmail(payload));
+  return sendMail(to, overdueReminderEmail(payload));
 }
 
-module.exports = { sendReceiptEmail, sendOverdueReminderEmail };
+async function sendInviteEmail(to, payload) {
+  return sendMail(to, inviteEmail(payload));
+}
+
+async function sendWorkflowNotifyEmail(to, payload) {
+  return sendMail(to, workflowNotifyEmail(payload));
+}
+
+async function sendOtpEmail(to, payload) {
+  return sendMail(to, otpEmail(payload));
+}
+
+async function sendParentMagicEmail(to, payload) {
+  return sendMail(to, parentMagicEmail(payload));
+}
+
+module.exports = {
+  sendMail,
+  sendReceiptEmail,
+  sendOverdueReminderEmail,
+  sendInviteEmail,
+  sendWorkflowNotifyEmail,
+  sendOtpEmail,
+  sendParentMagicEmail,
+};
