@@ -20,8 +20,16 @@ async function issueAuthResponse(res, user, membership, tenant, subscription, re
   } catch (err) {
     console.error('[session] create failed', err.message);
     clearAuthCookies(res);
-    res.status(500);
-    throw new Error('Could not create secure session');
+    const misconfigured =
+      /JWT_SECRET must be set/i.test(err.message || '') ||
+      /secret or private key/i.test(err.message || '');
+    const error = new Error(
+      misconfigured
+        ? 'Server auth is misconfigured (JWT_SECRET). Contact the administrator.'
+        : 'Could not create secure session'
+    );
+    error.statusCode = 500;
+    throw error;
   }
   // Tokens live only in httpOnly cookies — never return JWT/password secrets in JSON.
   res.status(status).json({

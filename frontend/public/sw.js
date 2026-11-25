@@ -1,4 +1,4 @@
-const CACHE = 'tusion-shell-v1';
+const CACHE = 'tusion-shell-v2';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/pwa-icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -18,7 +18,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
-  if (request.url.includes('/api/')) return;
+  // Never intercept API (login/session) — network only.
+  if (new URL(request.url).pathname.startsWith('/api/')) return;
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).catch(() => caches.match('/')))
   );

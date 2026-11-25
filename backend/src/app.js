@@ -33,6 +33,21 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+// Liveness should not depend on Postgres being reachable.
+app.get('/api/health', (req, res) => {
+  const secret = process.env.JWT_SECRET || '';
+  const jwtConfigured =
+    Boolean(secret) &&
+    secret !== 'change_this_to_a_long_random_secret' &&
+    secret.length >= 16;
+  res.json({
+    status: 'ok',
+    product: 'Tusion',
+    time: new Date().toISOString(),
+    jwtConfigured,
+  });
+});
+
 app.use(async (req, res, next) => {
   try {
     await connectDB();
@@ -50,14 +65,30 @@ app.use(
 );
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (isDev && /^http:\/\/localhost:\d+$/.test(origin)) return true;
+  if (origin === process.env.CLIENT_URL) return true;
+  if (/\.vercel\.app$/.test(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'urbancode.in' || hostname.endsWith('.urbancode.in')) return true;
+  } catch {
+    /* ignore invalid origin */
+  }
+  const extras = String(process.env.CLIENT_URLS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return extras.includes(origin);
+}
+
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (isDev && /^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
-      if (origin === process.env.CLIENT_URL) return callback(null, true);
-      if (/\.vercel\.app$/.test(origin || '')) return callback(null, true);
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -71,10 +102,6 @@ app.use(cookieParser());
 app.use(sanitizeRequest);
 app.use(globalLimiter);
 app.use(csrfProtect);
-
-app.get('/api/health', (req, res) =>
-  res.json({ status: 'ok', product: 'Tusion', time: new Date().toISOString() })
-);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
