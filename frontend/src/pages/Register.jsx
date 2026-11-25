@@ -108,7 +108,7 @@ export default function Register() {
           {[
             ['name', 'Your name', 'text'],
             ['email', 'Email', 'email'],
-            ['password', 'Password', 'password'],
+            ['password', 'Password (min 8 characters)', 'password'],
             ['businessName', 'Business / institute name', 'text'],
           ].map(([key, label, type]) => (
             <div key={key} className="mb-4">
@@ -116,7 +116,7 @@ export default function Register() {
               <input
                 type={type}
                 required
-                minLength={key === 'password' ? 6 : undefined}
+                minLength={key === 'password' ? 8 : undefined}
                 value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 className="w-full rounded-md border border-brand-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"

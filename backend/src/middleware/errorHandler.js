@@ -5,18 +5,19 @@ function notFound(req, res, next) {
 
 function clientSafeMessage(err, statusCode) {
   if (statusCode >= 500) return 'Something went wrong. Please try again.';
-  if (err && typeof err.message === 'string' && err.message.trim()) {
-    // Avoid leaking Prisma/internal driver/secret details to clients
-    if (
-      /prisma|database|econn|timeout|jwt_secret|secret|stack|password|mfaSecret|tokenHash/i.test(
-        err.message
-      )
-    ) {
-      return statusCode === 401 ? 'Not authorized' : 'Request failed';
-    }
-    return err.message;
+  const message = err && typeof err.message === 'string' ? err.message.trim() : '';
+  if (!message) return 'Request failed';
+
+  // Hide driver/internal leakage; keep normal validation and auth UX copy
+  // (e.g. "Password must be at least 8 characters").
+  if (
+    /prisma|database|econnrefused|econnreset|etimedout|jwt_secret|mfaSecret|tokenHash|passwordHash|\bstack\b|at Object\./i.test(
+      message
+    )
+  ) {
+    return statusCode === 401 ? 'Not authorized' : 'Request failed';
   }
-  return 'Request failed';
+  return message;
 }
 
 function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
