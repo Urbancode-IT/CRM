@@ -124,7 +124,7 @@ function Field({ label, value }) {
 
 function Card({ title, children, action }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="w-full">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
         {action}
@@ -471,9 +471,9 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#eef1f6] text-slate-800">
-      <header className="border-b border-slate-200 bg-white" style={{ borderTop: `3px solid ${colors[700]}` }}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <div className="flex min-h-screen flex-col bg-[#eef1f6] text-slate-800">
+      <header className="shrink-0 border-b border-slate-200 bg-white" style={{ borderTop: `3px solid ${colors[700]}` }}>
+        <div className="flex w-full items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-md text-white"
@@ -500,9 +500,9 @@ export default function AccountPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row">
-        <aside className="w-full shrink-0 overflow-hidden rounded-2xl bg-[#1b2430] text-slate-200 lg:w-64">
-          <nav className="space-y-0.5 p-2">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <aside className="flex w-full shrink-0 flex-col overflow-hidden bg-[#1b2430] text-slate-200 lg:h-auto lg:min-h-0 lg:w-72 lg:self-stretch">
+          <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
             {SECTIONS.map((item) => {
               const activeParent =
                 item.id === 'profile'
@@ -557,7 +557,7 @@ export default function AccountPage() {
               );
             })}
           </nav>
-          <div className="border-t border-white/10 p-3">
+          <div className="mt-auto border-t border-white/10 p-3">
             <button
               type="button"
               onClick={logout}
@@ -568,7 +568,7 @@ export default function AccountPage() {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 space-y-4">
+        <main className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 lg:p-8">
           {error ? <div className="rounded-xl bg-[#fdeaea] px-4 py-3 text-sm text-[#d03b3b]">{error}</div> : null}
           {message ? <div className="rounded-xl bg-[#eaf7ea] px-4 py-3 text-sm text-[#0ca30c]">{message}</div> : null}
 
