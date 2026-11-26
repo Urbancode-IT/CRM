@@ -6,6 +6,7 @@ import BrandMark from '../components/BrandMark';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { BRAND_NAME, BRAND_TAGLINE } from '../constants/brand';
 import { useTheme } from '../context/ThemeContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export default function Login() {
   const { login, verifyMfa, loginWithOtp, loginWithGoogle, user, loading } = useAuth();
@@ -61,7 +62,7 @@ export default function Login() {
       }
       navigate(postAuthPath(result));
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(getApiErrorMessage(err, 'Login failed'));
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +76,7 @@ export default function Login() {
       const loggedInUser = await verifyMfa(mfaToken, mfaCode);
       navigate(postAuthPath(loggedInUser));
     } catch (err) {
-      setError(err.response?.data?.message || 'MFA failed');
+      setError(getApiErrorMessage(err, 'MFA failed'));
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +92,7 @@ export default function Login() {
       const res = await api.post('/auth/otp/request', { phone, email: phone ? undefined : email });
       setMessage(res.data.message || 'OTP sent');
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not send OTP');
+      setError(getApiErrorMessage(err, 'Could not send OTP'));
     } finally {
       setSubmitting(false);
     }
@@ -105,7 +106,7 @@ export default function Login() {
       const loggedInUser = await loginWithOtp({ phone, email: phone ? undefined : email, code: otpCode });
       navigate(postAuthPath(loggedInUser));
     } catch (err) {
-      setError(err.response?.data?.message || 'OTP login failed');
+      setError(getApiErrorMessage(err, 'OTP login failed'));
     } finally {
       setSubmitting(false);
     }

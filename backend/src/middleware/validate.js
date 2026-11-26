@@ -3,9 +3,12 @@ const { validationResult, body, param, query } = require('express-validator');
 function validate(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400);
-    const first = errors.array({ onlyFirstError: true })[0];
-    return next(new Error(first?.msg || 'Invalid input'));
+    const list = errors.array({ onlyFirstError: true });
+    const first = list[0];
+    const err = new Error(first?.msg || 'Invalid input');
+    err.statusCode = 400;
+    err.errors = list;
+    return next(err);
   }
   return next();
 }

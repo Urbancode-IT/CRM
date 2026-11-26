@@ -171,15 +171,16 @@ const register = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Name, email, and password are required');
   }
-  if (String(password).length < 6) {
+  if (String(password).length < 8) {
     res.status(400);
-    throw new Error('Password must be at least 6 characters');
+    throw new Error('Password must be at least 8 characters');
   }
 
-  const exists = await prisma.user.findFirst({ where: { email: String(email).toLowerCase() } });
+  const exists = await prisma.user.findFirst({ where: { email: String(email).toLowerCase().trim() } });
   if (exists) {
-    res.status(400);
-    throw new Error('Email already registered');
+    const err = new Error('Email already registered. Please log in instead.');
+    err.statusCode = 409;
+    throw err;
   }
 
   const user = await prisma.user.create({
@@ -217,7 +218,9 @@ const login = asyncHandler(async (req, res) => {
 
   if (!user || !(await comparePassword(password, user.password))) {
     res.status(401);
-    throw new Error('Invalid email or password');
+    const err = new Error('Invalid email or password');
+    err.statusCode = 401;
+    throw err;
   }
 
   if (user.mfaEnabled) {

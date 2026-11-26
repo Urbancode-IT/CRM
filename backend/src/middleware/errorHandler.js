@@ -33,9 +33,16 @@ function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-va
     });
   }
 
-  res.status(statusCode).json({
+  const payload = {
     message: clientSafeMessage(err, statusCode),
-  });
+  };
+  if (Array.isArray(err.errors) && err.errors.length) {
+    payload.errors = err.errors.map((e) => ({
+      field: e.path || e.param || undefined,
+      msg: e.msg || e.message || 'Invalid input',
+    }));
+  }
+  res.status(statusCode).json(payload);
 }
 
 module.exports = { notFound, errorHandler };

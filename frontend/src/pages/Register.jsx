@@ -5,6 +5,7 @@ import { postAuthPath } from '../utils/postAuthPath';
 import BrandMark from '../components/BrandMark';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { BRAND_NAME } from '../constants/brand';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const CATEGORIES = [
   { value: 'tuition', label: 'Tuition / Coaching' },
@@ -29,6 +30,7 @@ export default function Register() {
     businessCategory: 'tuition',
   });
   const [error, setError] = useState('');
+  const [emailTaken, setEmailTaken] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleGoogleCredential = useCallback(
@@ -51,12 +53,21 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setEmailTaken(false);
     setSubmitting(true);
     try {
       const created = await register(form);
       navigate(postAuthPath(created));
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const message = getApiErrorMessage(err, 'Registration failed');
+      const taken =
+        err?.response?.status === 409 || /already registered/i.test(message);
+      setEmailTaken(taken);
+      setError(
+        taken
+          ? 'This email is already registered. Please log in instead.'
+          : message
+      );
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +98,12 @@ export default function Register() {
 
           {error && (
             <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
+              <p>{error}</p>
+              {emailTaken && (
+                <Link to="/login" className="mt-2 inline-block font-medium underline">
+                  Go to login
+                </Link>
+              )}
             </div>
           )}
 
