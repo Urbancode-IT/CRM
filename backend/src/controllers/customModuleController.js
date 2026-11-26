@@ -13,6 +13,10 @@ const {
   getCatalogItem,
   planUnlocked,
 } = require('../constants/moduleCatalog');
+const {
+  syncCustomModulesIntoSidebar,
+  removeCustomModuleSidebarLinks,
+} = require('../services/moduleNavSync');
 
 // Mongoose allowed sorting by `_id`; Prisma uses `id`. JSON paths (values.*) cannot be sorted here.
 const RECORD_SORT_FIELDS = { createdAt: 'createdAt', updatedAt: 'updatedAt', _id: 'id', id: 'id' };
@@ -181,6 +185,8 @@ const installCatalogModule = asyncHandler(async (req, res) => {
     meta: { catalogId: item.id },
   });
 
+  await syncCustomModulesIntoSidebar(req.tenantId);
+
   const fields = await prisma.customField.findMany({
     where: { moduleId: module.id },
     orderBy: { order: 'asc' },
@@ -312,6 +318,8 @@ const createModule = asyncHandler(async (req, res) => {
     entityId: module.id,
   });
 
+  await syncCustomModulesIntoSidebar(req.tenantId);
+
   res.status(201).json({ module: toApi(module) });
 });
 
@@ -347,6 +355,7 @@ const deleteModule = asyncHandler(async (req, res) => {
     prisma.record.deleteMany({ where: { moduleId: module.id, tenantId: req.tenantId } }),
     prisma.customModule.delete({ where: { id: module.id } }),
   ]);
+  await removeCustomModuleSidebarLinks(req.tenantId, module.id);
   res.json({ ok: true });
 });
 

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { prisma } = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const { DEFAULT_NAV_SECTIONS, HIDDEN_NAV_PATHS } = require('../services/tenantBootstrap');
+const { syncCustomModulesIntoSidebar } = require('../services/moduleNavSync');
 
 const PATH_LABELS = {
   '/app': 'Home',
@@ -152,6 +153,8 @@ async function ensureDefaultModules(tenantId, userId) {
 
 const listModules = asyncHandler(async (req, res) => {
   await ensureDefaultModules(req.tenantId, userIdOf(req.user));
+  // Catalog / custom modules installed in Modules Studio must also show in the sidebar.
+  await syncCustomModulesIntoSidebar(req.tenantId);
   const modules = await prisma.module.findMany({
     where: { tenantId: req.tenantId },
     orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],

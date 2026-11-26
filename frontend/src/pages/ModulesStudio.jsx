@@ -84,7 +84,8 @@ export default function ModulesStudio() {
     try {
       const res = await api.post(`/custom-modules/catalog/${item.id}/install`);
       await Promise.all([loadModules(), loadCatalog()]);
-      setMessage(`“${item.name}” added — ready to use.`);
+      window.dispatchEvent(new Event('tusion:modules-changed'));
+      setMessage(`“${item.name}” added — it now appears in the sidebar.`);
       if (res.data.module) await selectModule(res.data.module);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not add module');
@@ -112,6 +113,7 @@ export default function ModulesStudio() {
       }
       setConfirmDelete(null);
       await Promise.all([loadModules(), loadCatalog()]);
+      window.dispatchEvent(new Event('tusion:modules-changed'));
       setTab('catalog');
     } catch (err) {
       setError(err.response?.data?.message || 'Delete failed');

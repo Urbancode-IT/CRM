@@ -160,6 +160,9 @@ function sectionVisual(section, fallbackColor) {
   if (section.path && SECTION_ICON_META[section.path]) {
     return SECTION_ICON_META[section.path];
   }
+  if (section.linkedModuleId) {
+    return { color: '#b89a98', Icon: GridIcon };
+  }
   return { color: fallbackColor, Icon: PageIcon };
 }
 
@@ -193,28 +196,42 @@ export default function Sidebar({ user, logout, open, onClose }) {
   // { type: 'module' | 'section', moduleId, sectionId?, title, message }
   const [submitting, setSubmitting] = useState(false);
 
+  function applyModules(list) {
+    setModules(list);
+    setOpenMap((prev) => {
+      const next = { ...prev };
+      list.forEach((m) => {
+        if (next[m.id] === undefined) next[m.id] = true;
+      });
+      return next;
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
-    api
-      .get('/modules')
-      .then((res) => {
-        if (cancelled) return;
-        const list = res.data.modules || [];
-        setModules(list);
-        const initial = {};
-        list.forEach((m) => {
-          initial[m.id] = true;
+
+    function loadModules() {
+      api
+        .get('/modules')
+        .then((res) => {
+          if (cancelled) return;
+          applyModules(res.data.modules || []);
+          setError('');
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err.response?.data?.message || 'Failed to load modules');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
         });
-        setOpenMap(initial);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.response?.data?.message || 'Failed to load modules');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    }
+
+    loadModules();
+    const onModulesChanged = () => loadModules();
+    window.addEventListener('tusion:modules-changed', onModulesChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener('tusion:modules-changed', onModulesChanged);
     };
   }, []);
 
@@ -479,7 +496,7 @@ export default function Sidebar({ user, logout, open, onClose }) {
                                 </span>
                                 <span className="truncate">{section.name}</span>
                               </NavLink>
-                              {!section.path && (
+                              {!section.path && !section.linkedModuleId && (
                                 <button
                                   type="button"
                                   title="Delete section"
